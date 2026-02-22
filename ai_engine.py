@@ -4,37 +4,39 @@ from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel, Field
 
+# --- NEW: Import our Data Ingestion Module! ---
+from data_ingestion import fetch_live_trends
+
 # 1. Setup & Authentication
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# 2. Define the Output Architecture (The Blueprint)
-# This forces the AI to return exactly this data structure, nothing else.
+# 2. Define Output Architecture
 class TrendAnalysis(BaseModel):
-    winning_product: str = Field(description="The name of the single best product")
-    impulse_buy_score: int = Field(description="Score from 1 to 10")
-    reasoning: str = Field(description="A one-sentence explanation for the score")
+    winning_category: str = Field(description="The single most promising retail category, product, or strategy based on the news")
+    confidence_score: int = Field(description="Score from 1 to 10 indicating how strong this trend appears")
+    reasoning: str = Field(description="A one-sentence explanation for why this category was chosen")
 
-# 3. Mock Data Input (Simulating a Pinterest API pull)
-pinterest_trends = {
-    "platform": "Pinterest",
-    "target_audience": "Gen Z & Millennials",
-    "trending_search_terms": ["chunky knit blankets", "mushroom lamp", "matcha whisk set"],
-    "growth_velocity": "High"
-}
+# 3. Fetch LIVE Data 📡
+print("Initiating Demand Forecasting Pipeline...\n")
+live_headlines = fetch_live_trends()
 
-# 4. The Prompt Payload
+if not live_headlines:
+    print("🚨 No live data found. Exiting pipeline.")
+    exit()
+
+# 4. The Prompt Payload 🧠
 prompt = f"""
 You are an AI Demand Forecasting Engine. 
-Analyze the following social media trend data:
-{json.dumps(pinterest_trends, indent=2)}
+Analyze the following live retail news headlines:
+{json.dumps(live_headlines, indent=2)}
 
-Evaluate these trends and identify the single item with the highest 'Impulse Buy Potential'.
+Based on these headlines, deduce the single most promising product category or retail strategy a supply chain manager should prepare for.
 """
 
-print("Analyzing trends and forcing structured JSON output...\n")
+print("\n🧠 Brain activated. Analyzing live data and formatting output...\n")
 
-# 5. Execution
+# 5. AI Execution
 response = client.models.generate_content(
     model='gemini-2.5-flash',
     contents=prompt,
@@ -44,9 +46,8 @@ response = client.models.generate_content(
     }
 )
 
-# Because we used Pydantic, the SDK automatically parses the JSON back into Python variables!
 result = response.parsed
-print("--- FORECASTING RESULTS ---")
-print(f"Product: {result.winning_product}")
-print(f"Score:   {result.impulse_buy_score}/10")
-print(f"Reason:  {result.reasoning}")
+print("--- 🔮 LIVE FORECASTING RESULTS ---")
+print(f"Target Category: {result.winning_category}")
+print(f"Confidence:      {result.confidence_score}/10")
+print(f"Reason:          {result.reasoning}")
