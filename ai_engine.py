@@ -4,12 +4,16 @@ from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel, Field
 
-# --- NEW: Import our Data Ingestion Module! ---
+# --- IMPORT OUR CUSTOM MODULES ---
 from data_ingestion import fetch_live_trends
+from database import setup_database, save_forecast
 
 # 1. Setup & Authentication
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Initialize the database immediately when the script starts
+setup_database()
 
 # 2. Define Output Architecture
 class TrendAnalysis(BaseModel):
@@ -18,7 +22,7 @@ class TrendAnalysis(BaseModel):
     reasoning: str = Field(description="A one-sentence explanation for why this category was chosen")
 
 # 3. Fetch LIVE Data 📡
-print("Initiating Demand Forecasting Pipeline...\n")
+print("\nInitiating Demand Forecasting Pipeline...\n")
 live_headlines = fetch_live_trends()
 
 if not live_headlines:
@@ -50,4 +54,7 @@ result = response.parsed
 print("--- 🔮 LIVE FORECASTING RESULTS ---")
 print(f"Target Category: {result.winning_category}")
 print(f"Confidence:      {result.confidence_score}/10")
-print(f"Reason:          {result.reasoning}")
+print(f"Reason:          {result.reasoning}\n")
+
+# 6. The Load Phase (Save to Database) 💾
+save_forecast(result.winning_category, result.confidence_score, result.reasoning)
